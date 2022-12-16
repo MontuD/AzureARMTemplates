@@ -1,0 +1,278 @@
+{
+    "$schema": "http://schema.management.azure.com/schemas/2015-01-01/deploymentTemplate.json#",
+    "contentVersion": "1.0.0.0",
+     "parameters": {
+        "location": {
+            "type":"String",
+            "defaultValue": "eastus"
+        },
+        "networkInterfaceName": {
+            "type":"string",
+            "defaultValue": "niceastus"
+            
+        },
+        "enableAcceleratedNetworking": {
+            "type": "bool",
+            "defaultValue": true
+        },
+        "networkSecurityGroupName": {
+            "type":"String",
+            "defaultValue": "ubuntu-server-eastus-nsg"
+        },
+        "networkSecurityGroupRules": {
+            "type":"array",
+            "defaultValue": [
+                {
+                    "name": "SSH",
+                    "properties": {
+                        "priority": 300,
+                        "protocol": "TCP",
+                        "access": "Allow",
+                        "direction": "Inbound",
+                        "sourceAddressPrefix": "*",
+                        "sourcePortRange": "*",
+                        "destinationAddressPrefix": "*",
+                        "destinationPortRange": "22"
+                    }
+                }
+            ]
+        },
+        "subnetName": {
+            "type":"String",
+            "defaultValue": "default"
+        },
+        "virtualNetworkName": {
+            "type":"String",
+            "defaultValue": "user-nbiyhsxemkvv-vnet"
+        },
+        "addressPrefixes": {
+            "type":"array",
+            "defaultValue": [
+                "10.0.0.0/16"
+            ]
+        },
+        "subnets": {
+            "type":"array",
+            "defaultValue": [
+                {
+                    "name": "default",
+                    "properties": {
+                        "addressPrefix": "10.0.0.0/24"
+                    }
+                }
+            ]
+        },
+        "publicIpAddressName": {
+            "type":"String",
+            "defaultValue": "ubuntu-server-eastus-ip"
+        },
+        "publicIpAddressType": {
+            "type":"String",
+            "defaultValue": "Static"
+        },
+        "publicIpAddressSku": {
+            "type":"String",
+            "defaultValue": "Standard"
+        },
+        "pipDeleteOption": {
+            "type":"String",
+            "defaultValue": "Detach"
+        },
+        "virtualMachineName": {
+          "type": "string",
+           "defaultValue" :"ubuntu-vm-server" 
+         
+        },
+        "virtualMachineComputerName": {
+            "type":"String",
+            "defaultValue": "ubuntu-server-eastus"
+        },
+
+        "virtualMachineRG": {
+            "type":"String",
+            "defaultValue": "user-nbiyhsxemkvv"
+        },
+        "osDiskType": {
+            "type":"String",
+            "defaultValue": "Standard_LRS"
+        },
+        "osDiskDeleteOption": {
+            "type":"String",
+            "defaultValue": "Delete"
+        },
+        "virtualMachineSize": {
+            "type":"String",
+            "defaultValue": "Standard_DS1_v2"
+        },
+        "nicDeleteOption": {
+            "type":"String",
+            "defaultValue": "Detach"
+        },
+        "adminUsername": {
+            "type":"String",
+            "defaultValue": "azureuser"
+        },
+
+        "sshkey":{
+            "type": "string",
+            "defaultValue":"ssh-rsa AAAAB3NzaC1yc2EAAAADAQABAAABgQDIPt5pf+d48iRFC+POIWydbtF5RxqDsDlSxPS7fpnxopolrJkzr4Z0zyjwHg6Qu0TCnUiaSmhvZh4re1wT0YES+1nROVd3vUN/jSr0TuDvTLs75SpvcLWQngSda5hB9MOBLTuxyqbgkhgqH2guhBzCXoI7fGs5jhUrIpEwTS/c+ue4goRtaSRBQKdFW7R2E6O7mDQzFyHSnbR7zRRTTF1gPr/HXtntS2GSqIG7rcWuaiyWdauCGOT9RC+MyN3RPRkgZy9kXR/Se9Mvwhk5jZ9HH73vYuOZveykZq5PYPnrj6DPXbMY29FNAbreJsnB8y0IO6HtRA85lVFtyYOl6Q5xsyZDDRRmXJ61NH9v1rNi0HAJ8khd9RhjqhhiikzyXvH8bueGlAq2Mgn7RlmaWjxbrtIxtqLKUccvLHGZMuMzCZJCos5gdHEtZn+goOn0YDW4T4VODKgz601Yexv3ZPyx7k9aW5s5kgu5CIjGfn9glFgahfUz7/9/Ie1vmNjbRgE="
+        }
+    },
+    "variables": {
+        "nsgId": "[resourceId(resourceGroup().name, 'Microsoft.Network/networkSecurityGroups', parameters('networkSecurityGroupName'))]",
+        "vnetName": "[parameters('virtualNetworkName')]",
+        "vnetId": "[resourceId(resourceGroup().name,'Microsoft.Network/virtualNetworks', parameters('virtualNetworkName'))]",
+        "subnetRef": "[concat(variables('vnetId'), '/subnets/', parameters('subnetName'))]"
+    },
+    "resources": [
+        {
+            "name": "[concat(parameters('networkInterfaceName'),copyIndex(),uniqueString(resourceGroup().id))]",
+            "type": "Microsoft.Network/networkInterfaces",
+            "apiVersion": "2021-08-01",
+            "copy" : {
+                "name":"nic",
+                "count": 3
+            },
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkSecurityGroups/', parameters('networkSecurityGroupName'))]",
+                "[concat('Microsoft.Network/virtualNetworks/', parameters('virtualNetworkName'))]",
+                "[concat('Microsoft.Network/publicIpAddresses/', parameters('publicIpAddressName'),copyIndex())]"
+            ],
+            "properties": {
+                "ipConfigurations": [
+                    {
+                        "name": "[concat('ipconfig1',copyIndex(),uniqueString(resourceGroup().id))]",
+                        "properties": {
+                            "subnet": {
+                                "id": "[variables('subnetRef')]"
+                            },
+                            "privateIPAllocationMethod": "Dynamic",
+                            "publicIpAddress": {
+                                "id": "[resourceId(resourceGroup().name, 'Microsoft.Network/publicIpAddresses', concat(parameters('publicIpAddressName'),copyIndex()))]",
+                                "properties": {
+                                    "deleteOption": "[parameters('pipDeleteOption')]"
+                                }
+                            }
+                        }
+                    }
+                ],
+                "enableAcceleratedNetworking": "[parameters('enableAcceleratedNetworking')]",
+                "networkSecurityGroup": {
+                    "id": "[variables('nsgId')]"
+                }
+            }
+        },
+        {
+            "name": "[parameters('networkSecurityGroupName')]",
+            "type": "Microsoft.Network/networkSecurityGroups",
+            "apiVersion": "2019-02-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "securityRules": "[parameters('networkSecurityGroupRules')]"
+            }
+        },
+        {
+            "name": "[parameters('virtualNetworkName')]",
+            "type": "Microsoft.Network/virtualNetworks",
+            "apiVersion": "2021-01-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "addressSpace": {
+                    "addressPrefixes": "[parameters('addressPrefixes')]"
+                },
+                "subnets": "[parameters('subnets')]"
+            }
+        },
+        {
+            "name": "[concat(parameters('publicIpAddressName'),copyIndex())]",
+            "type": "Microsoft.Network/publicIpAddresses",
+            "apiVersion": "2020-08-01",
+            "location": "[parameters('location')]",
+            "properties": {
+                "publicIpAllocationMethod": "[parameters('publicIpAddressType')]"
+            },
+            "copy":{
+                "name":"publicIp",
+                "count":3
+            },
+            "sku": {
+                "name": "[parameters('publicIpAddressSku')]"
+            }
+        },
+        {
+            "name": "[concat(parameters('virtualMachineName'),copyIndex(),uniqueString(resourceGroup().id))]",
+            "type": "Microsoft.Compute/virtualMachines",
+            "apiVersion": "2022-03-01",
+           
+            "location": "[parameters('location')]",
+            "dependsOn": [
+                "[concat('Microsoft.Network/networkInterfaces/', concat(parameters('networkInterfaceName'),copyIndex(),uniqueString(resourceGroup().id)))]"
+            ],
+            "properties": {
+                "hardwareProfile": {
+                    "vmSize": "[parameters('virtualMachineSize')]"
+                },
+                "storageProfile": {
+                    "osDisk": {
+                        "createOption": "fromImage",
+                        "managedDisk": {
+                            "storageAccountType": "[parameters('osDiskType')]"
+                        },
+                        "deleteOption": "[parameters('osDiskDeleteOption')]"
+                    },
+                    "imageReference": {
+                        "publisher": "Canonical",
+                        "offer": "UbuntuServer",
+                        "sku": "18_04-lts-gen2",
+                        "version": "latest"
+                    }
+                },
+                "networkProfile": {
+                    "networkInterfaces": [
+                        {
+                            "id": "[resourceId('Microsoft.Network/networkInterfaces',concat(parameters('networkInterfaceName'),copyIndex(),uniqueString(resourceGroup().id)))]",
+                            "properties": {
+                                "deleteOption": "[parameters('nicDeleteOption')]"
+                            }
+                        }
+                    ]
+                },
+                "osProfile": {
+                    "computerName": "[parameters('virtualMachineComputerName')]",
+                    "adminUsername": "[parameters('adminUsername')]",
+                    "linuxConfiguration": {
+                        "disablePasswordAuthentication": true,
+                        "ssh":{
+                            "publicKeys": [
+                              {
+                                    "path": "[concat('/home/', parameters('adminUsername'), '/.ssh/authorized_keys')]",
+                                    "keyData": "[parameters('sshkey')]"
+                             }
+                        ]
+                     }
+                    }
+                    
+                },
+                "diagnosticsProfile": {
+                    "bootDiagnostics": {
+                        "enabled": true
+                    }
+                }
+            },
+            "copy":{
+                "name": "azurevm-copy",
+                "count": 3,
+                "mode":"serial"
+            }
+           
+      
+        }
+    ],
+    "outputs": {
+        "adminUsername": {
+            "type": "string",
+            "value": "[parameters('adminUsername')]"
+        }
+    }
+}
